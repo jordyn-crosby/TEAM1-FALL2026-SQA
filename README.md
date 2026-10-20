@@ -7,10 +7,10 @@ The objective of this project is to integrate software quality assurance activit
 
 
 ### TO DO LIST
-- [ ] Unpack the project slikube.zip. (1%)
+- [X] Unpack the project slikube.zip. (1%)
 - [X] Put the names and emails of your teammate in this spreadsheet (1%)
 - [X] Upload project as a GitHub repo on github.com. Format of the repo name is TEAMNAME-FALL2026-SQA (1%)
-- [ ] In your project repo create README.md listing your team name and team members. (2%)
+- [X] In your project repo create README.md listing your team name and team members. (2%)
 - [ ] Apply the following activities related to software quality assurance:
 
   - [ ] Create a fuzz.py file that will automatically fuzz 10 Python methods of your choice. Report any bugs you discovered by the fuzz.py file. fuzz.py will be automatically executed from GitHub actions. (25%)

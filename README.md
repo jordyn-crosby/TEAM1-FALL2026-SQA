@@ -21,7 +21,7 @@ The objective of this project is to integrate software quality assurance activit
 
 ### Deliverables
 
-- [ ] A public repository hosted on GitHub. Name of the repo will be TEAMNAME-FALL2026-SQA
+- [X] A public repository hosted on GitHub. Name of the repo will be TEAMNAME-FALL2026-SQA
 - [ ] Full completion of all activities as recorded on the GitHub repository
 - [ ] Report describing what activities your performed and what you have learned
 - [ ] Code, logs, and screenshots that show execution of forensics, fuzzing, and continuous integration

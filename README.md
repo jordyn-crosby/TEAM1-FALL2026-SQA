@@ -1,5 +1,5 @@
 # TEAM1-FALL2026-SQA
-> **Team Members:** Jordyn Crosby, Jackson Henry, Rett Wilson, Shane Bano, Jack Fulks 
+> **Team Members:** Jordyn Crosby, Jackson Henry, Rett Wilson, Artemis Dolihite 
 
 ### Objective
 The objective of this project is to integrate software quality assurance activities into an existing Python project.

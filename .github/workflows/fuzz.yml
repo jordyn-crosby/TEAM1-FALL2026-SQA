@@ -1,0 +1,16 @@
+name: fuzz
+on: [push, pull_request, workflow_dispatch]
+jobs:
+  fuzz:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: pip install ruamel.yaml pandas numpy sarif-om jschema-to-python
+      - run: python fuzz.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: fuzz-report
+          path: fuzz_report.txt

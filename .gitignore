@@ -1,0 +1,4 @@
+forensics.log
+fuzz_report.txt
+.venv/
+__pycache__/

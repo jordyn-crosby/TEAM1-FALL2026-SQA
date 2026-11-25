@@ -8,6 +8,12 @@ import parser
 import os 
 from itertools import combinations
 
+# Programmer Note: Added in forensics_logger.py to log the errors in a file instead of printing on console.
+import forensics_logger
+from forensics_logger import describe
+logObj = forensics_logger.get_logger()
+
+
 def getYAMLFiles(path_to_dir):
     valid_  = [] 
     for root_, dirs, files_ in os.walk( path_to_dir ):
@@ -18,12 +24,24 @@ def getYAMLFiles(path_to_dir):
                valid_.append(full_p_file)
     return valid_ 
 
-def constructHelmString(hiera_tuple): 
-    str2ret  = constants.YAML_SKIPPING_TEXT 
-    upper_key, key, _ = hiera_tuple 
-    if ( upper_key != key  ):
-        str2ret =   constants.DOT_SYMBOL +  constants.HELM_VALUE_KW + constants.DOT_SYMBOL + upper_key + constants.DOT_SYMBOL + key 
-    return str2ret 
+def constructHelmString(hiera_tuple):
+    logObj.info('constructHelmString called with %s', describe(hiera_tuple))
+    str2ret = constants.YAML_SKIPPING_TEXT
+    try:
+        upper_key, key, _ = hiera_tuple
+    except (TypeError, ValueError):
+        logObj.exception('constructHelmString: expected a 3-item tuple, got %s', describe(hiera_tuple))
+        raise
+    if upper_key != key:
+        try:
+            str2ret = (constants.DOT_SYMBOL + constants.HELM_VALUE_KW + constants.DOT_SYMBOL
+                       + upper_key + constants.DOT_SYMBOL + key)
+        except TypeError:
+            logObj.exception('constructHelmString: non-string keys (%s, %s)',
+                             type(upper_key).__name__, type(key).__name__)
+            raise
+    logObj.info('constructHelmString result=%s', str2ret)
+    return str2ret
 
 def getHelmTemplateContent( templ_dir ):
     template_content_dict = {}

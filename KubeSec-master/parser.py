@@ -15,6 +15,11 @@ import re
 import subprocess
 import os
 
+# Programmer Note: Added in forensics_logger.py to log the errors in a file instead of printing on console.
+import forensics_logger
+from forensics_logger import describe
+logObj = forensics_logger.get_logger()
+
 #update basepath
 base_path = r" "
 
@@ -25,106 +30,167 @@ def checkIfWeirdYAML(yaml_script):
     '''
     to filter invalid YAMLs such as ./github/workflows/ 
     '''
+    logObj.info('checkIfWeirdYAML called with %s', describe(yaml_script))
+    if not isinstance(yaml_script, str):
+        logObj.warning('checkIfWeirdYAML: non-string input %s', type(yaml_script).__name__)
     val = False
-    if ( any(x_ in yaml_script for x_ in constants.WEIRD_PATHS  ) ):
-        val = True 
-    return val 
+    try:
+        if any(x_ in yaml_script for x_ in constants.WEIRD_PATHS):
+            val = True
+    except Exception:
+        logObj.exception('checkIfWeirdYAML failed on %s', describe(yaml_script))
+        raise
+    logObj.info('checkIfWeirdYAML result=%s', val)
+    return val
 
 
-def keyMiner(dic_, value):
-  '''
-  If you give a value, then this function gets the corresponding key, and the keys that call the key 
-  i.e. the whole hierarchy
-  Returns None if no value is found  
-  '''
-  if dic_ == value:
-    return [dic_]
-  elif isinstance(dic_, dict):
-    for k, v in dic_.items():
-      p = keyMiner(v, value)
-      if p:
-        return [k] + p
-  elif isinstance(dic_, list):
-    lst = dic_
-    for i in range(len(lst)):
-      p = keyMiner(lst[i], value)
-      if p:
-        return [str(i)] + p
-
-
-
-def getKeyRecursively(  dict_, list2hold,  depth_ = 0  ) :
+def keyMiner(dic_, value, _top=True):
     '''
-    gives you ALL keys in a regular/nested dictionary 
+    If you give a value, then this function gets the corresponding key, and the keys that call the key
+    i.e. the whole hierarchy
+    Returns None if no value is found
     '''
-    if  isinstance(dict_, dict) :
-        # for key_, val_ in sorted(dict_.items(), key=lambda x: x[0]):    
-        for key_, val_ in sorted(dict_.items(), key = lambda x: x[0] if ( isinstance(x[0], str) ) else str(x[0])  ):    
-            if isinstance(val_, dict):
-                list2hold.append( (key_, depth_) )
-                depth_ += 1 
-                getKeyRecursively( val_, list2hold,  depth_ ) 
-            elif isinstance(val_, list):
-                for listItem in val_:
-                        if( isinstance( listItem, dict ) ):
-                            list2hold.append( (key_, depth_) )
-                            depth_ += 1 
-                            getKeyRecursively( listItem, list2hold,  depth_ )     
-            else: 
-                list2hold.append( (key_, depth_) ) 
-    #print(list2hold)               
+    if _top:
+        logObj.info('keyMiner called with dic_=%s value_type=%s', describe(dic_), type(value).__name__)
+        try:
+            result = keyMiner(dic_, value, _top=False)
+        except Exception:
+            logObj.exception('keyMiner failed on dic_=%s', describe(dic_))
+            raise
+        logObj.info('keyMiner found=%s path_depth=%d', result is not None, len(result) if result else 0)
+        return result
 
-def getValuesRecursively(  dict_   ) :
+    if dic_ == value:
+        return [dic_]
+    elif isinstance(dic_, dict):
+        for k, v in dic_.items():
+            p = keyMiner(v, value, _top=False)
+            if p:
+                return [k] + p
+    elif isinstance(dic_, list):
+        lst = dic_
+        for i in range(len(lst)):
+            p = keyMiner(lst[i], value, _top=False)
+            if p:
+                return [str(i)] + p
+
+
+
+def getKeyRecursively(dict_, list2hold, depth_=0):
     '''
-    gives you ALL values in a regular/nested dictionary 
+    gives you ALL keys in a regular/nested dictionary
     '''
-    if  isinstance(dict_, dict) :
+    is_top = (depth_ == 0)
+    if is_top:
+        logObj.info('getKeyRecursively called with %s', describe(dict_))
+        if not isinstance(dict_, dict):
+            logObj.warning('getKeyRecursively: input is %s, not dict; no keys collected', type(dict_).__name__)
+    try:
+        if isinstance(dict_, dict):
+            for key_, val_ in sorted(dict_.items(), key=lambda x: x[0] if isinstance(x[0], str) else str(x[0])):
+                if isinstance(val_, dict):
+                    list2hold.append((key_, depth_))
+                    depth_ += 1
+                    getKeyRecursively(val_, list2hold, depth_)
+                elif isinstance(val_, list):
+                    for listItem in val_:
+                        if isinstance(listItem, dict):
+                            list2hold.append((key_, depth_))
+                            depth_ += 1
+                            getKeyRecursively(listItem, list2hold, depth_)
+                else:
+                    list2hold.append((key_, depth_))
+    except Exception:
+        if is_top:
+            logObj.exception('getKeyRecursively failed on %s', describe(dict_))
+        raise
+    if is_top:
+        logObj.info('getKeyRecursively collected %d key(s)', len(list2hold))
+
+def getValuesRecursively(dict_, _top=True):
+    '''
+    gives you ALL values in a regular/nested dictionary
+    '''
+    if _top:
+        logObj.info('getValuesRecursively called with %s', describe(dict_))
+        count = 0
+        try:
+            for v in getValuesRecursively(dict_, _top=False):
+                count += 1
+                yield v
+        except Exception:
+            logObj.exception('getValuesRecursively failed after %d value(s)', count)
+            raise
+        logObj.info('getValuesRecursively yielded %d value(s)', count)
+        return
+
+    if isinstance(dict_, dict):
         for val_ in dict_.values():
-            yield from getValuesRecursively(val_) 
-            #print(val_)
+            yield from getValuesRecursively(val_, _top=False)
     elif isinstance(dict_, list):
         for v_ in dict_:
-            yield from getValuesRecursively(v_)
-            #print(v_)
-    else: 
-        yield dict_ 
+            yield from getValuesRecursively(v_, _top=False)
+    else:
+        yield dict_
 
 
 def checkIfValidK8SYaml(path2yaml):
-    val2ret   = False 
-    dict_as_list = loadMultiYAML( path2yaml )
-    yaml_dict    = getSingleDict4MultiDocs( dict_as_list )        
-    k_list       = []
-    getKeyRecursively( yaml_dict, k_list )
-    temp_ = []
-    for k_ in k_list:
-        temp_.append( k_[0]  )
-    key_lis      = list( getValuesRecursively  ( yaml_dict ) )
-    if ( any(x_ in key_lis for x_ in constants.K8S_FORBIDDEN_KW_LIST ) ): 
-        val2ret = False 
-    else: 
-        if ( constants.API_V_KEYNAME in temp_ ) and (constants.KIND_KEY_NAME in temp_):
-            val2ret = True 
+    logObj.info('checkIfValidK8SYaml checking file %s', path2yaml)
+    val2ret = False
+    try:
+        dict_as_list = loadMultiYAML(path2yaml)
+        logObj.info('checkIfValidK8SYaml loaded %s', describe(dict_as_list))
+        yaml_dict = getSingleDict4MultiDocs(dict_as_list)
+        k_list = []
+        getKeyRecursively(yaml_dict, k_list)
+        temp_ = [k_[0] for k_ in k_list]
+        key_lis = list(getValuesRecursively(yaml_dict))
+    except Exception:
+        logObj.exception('checkIfValidK8SYaml failed to parse %s', path2yaml)
+        raise
+
+    forbidden_hits = [x_ for x_ in constants.K8S_FORBIDDEN_KW_LIST if x_ in key_lis]
+    if forbidden_hits:
+        logObj.warning('checkIfValidK8SYaml: forbidden keyword(s) %s in %s', forbidden_hits, path2yaml)
+        val2ret = False
+    else:
+        has_api = constants.API_V_KEYNAME in temp_
+        has_kind = constants.KIND_KEY_NAME in temp_
+        logObj.info('checkIfValidK8SYaml apiVersion=%s kind=%s', has_api, has_kind)
+        if has_api and has_kind:
+            val2ret = True
+    logObj.info('checkIfValidK8SYaml result=%s for %s', val2ret, path2yaml)
     return val2ret
 
 
 
-def getValsFromKey(dict_, target, list_holder  ):
+def getValsFromKey(dict_, target, list_holder, _top=True):
     '''
-    If you give a key, then this function gets the corresponding values 
-    Multiple values are returned if there are keys with the same name  
-    '''    
-    if ( isinstance( dict_, dict ) ):
+    If you give a key, then this function gets the corresponding values
+    Multiple values are returned if there are keys with the same name
+    '''
+    if _top:
+        logObj.info('getValsFromKey called with dict_=%s target=%r',
+                    describe(dict_), str(target)[:40])
+        before = len(list_holder)
+        try:
+            getValsFromKey(dict_, target, list_holder, _top=False)
+        except Exception:
+            logObj.exception('getValsFromKey failed on dict_=%s', describe(dict_))
+            raise
+        logObj.info('getValsFromKey found %d match(es)', len(list_holder) - before)
+        return
+
+    if isinstance(dict_, dict):
         for key, value in dict_.items():
-            # print( key, len(key) , target, len( target ), value  )
             if key == target:
-                list_holder.append( value )
-            else: 
+                list_holder.append(value)
+            else:
                 if isinstance(value, dict):
-                    getValsFromKey(value, target, list_holder)
+                    getValsFromKey(value, target, list_holder, _top=False)
                 elif isinstance(value, list):
                     for ls in value:
-                        getValsFromKey(ls, target, list_holder)
+                        getValsFromKey(ls, target, list_holder, _top=False)
 
 def checkIfValidHelm(path_script):
     val_ret = False 

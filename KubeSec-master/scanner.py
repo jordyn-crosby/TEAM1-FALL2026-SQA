@@ -15,6 +15,7 @@ from jschema_to_python.to_json import to_json
 
 # Programmer Note: Added in forensics_logger.py to log the errors in a file instead of printing on console.
 import forensics_logger
+from forensics_logger import describe
 logObj = forensics_logger.get_logger()
 
 '''Global SarifLog Object definition and Rule definition for SLI-KUBE. Rule IDs are ordered by the sequence as it appears in the TOSEM paper'''
@@ -74,26 +75,34 @@ def getYAMLFiles(path_to_dir):
                valid_.append(full_p_file)
     return valid_ 
 
-def isValidUserName(uName): 
+def isValidUserName(uName):
+    logObj.info('isValidUserName called with %s', describe(uName))
     valid = True
-    if (isinstance( uName , str)  ): 
-        if( any(z_ in uName for z_ in constants.FORBIDDEN_USER_NAMES )   ): 
-            valid = False   
-        else: 
-            valid = True    
-    else: 
-        valid = False   
+    if isinstance(uName, str):
+        if any(z_ in uName for z_ in constants.FORBIDDEN_USER_NAMES):
+            logObj.info('isValidUserName: matched a forbidden user name pattern')
+            valid = False
+        else:
+            valid = True
+    else:
+        logObj.warning('isValidUserName: non-string input %s', type(uName).__name__)
+        valid = False
+    logObj.info('isValidUserName result=%s', valid)
     return valid
 
-def isValidPasswordName(pName): 
+def isValidPasswordName(pName):
+    logObj.info('isValidPasswordName called with %s', describe(pName))
     valid = True
-    if (isinstance( pName , str)  ): 
-        if( any(z_ in pName for z_ in constants.FORBIDDEN_PASS_NAMES) )  : 
-            valid = False  
-        else: 
-            valid = True    
-    else: 
-        valid = False               
+    if isinstance(pName, str):
+        if any(z_ in pName for z_ in constants.FORBIDDEN_PASS_NAMES):
+            logObj.info('isValidPasswordName: matched a forbidden password name pattern')
+            valid = False
+        else:
+            valid = True
+    else:
+        logObj.warning('isValidPasswordName: non-string input %s', type(pName).__name__)
+        valid = False
+    logObj.info('isValidPasswordName result=%s', valid)
     return valid
 
 def isValidKey(keyName): 
@@ -108,18 +117,24 @@ def isValidKey(keyName):
     return valid    
 
 def checkIfValidSecret(single_config_val):
-    flag2Ret = False 
-    # print(type( single_config_val ), single_config_val  )
-    if ( isinstance( single_config_val, str ) ):
+    logObj.info('checkIfValidSecret called with %s', describe(single_config_val))
+    flag2Ret = False
+    if isinstance(single_config_val, str):
         single_config_val = single_config_val.lower()
-        config_val = single_config_val.strip() 
-        if ( any(x_ in config_val for x_ in constants.INVALID_SECRET_CONFIG_VALUES ) ):
-            flag2Ret = False 
+        config_val = single_config_val.strip()
+        if any(x_ in config_val for x_ in constants.INVALID_SECRET_CONFIG_VALUES):
+            reason = 'matches invalid-config placeholder'
+            flag2Ret = False
+        elif len(config_val) > 2:
+            reason = 'passes all checks'
+            flag2Ret = True
         else:
-            if(  len(config_val) > 2 )  :
-                flag2Ret = True 
-    else: 
-        flag2Ret = False 
+            reason = 'too short (len=%d)' % len(config_val)
+    else:
+        reason = 'non-string input %s' % type(single_config_val).__name__
+        logObj.warning('checkIfValidSecret: %s', reason)
+        flag2Ret = False
+    logObj.info('checkIfValidSecret result=%s reason=%s', flag2Ret, reason)
     return flag2Ret
 
 def scanUserName(k_ , val_lis ):

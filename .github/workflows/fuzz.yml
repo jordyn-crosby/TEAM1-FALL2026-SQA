@@ -13,4 +13,6 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: fuzz-report
-          path: fuzz_report.txt
+          path: |
+            fuzz_report.txt
+            forensics.log

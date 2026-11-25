@@ -15,6 +15,10 @@ import re
 import subprocess
 import os
 
+# Programmer Note: Added in forensics_logger.py to log the errors in a file instead of printing on console.
+import forensics_logger
+logObj = forensics_logger.get_logger()
+
 #update basepath
 base_path = r" "
 

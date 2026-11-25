@@ -8,6 +8,11 @@ import parser
 import os 
 from itertools import combinations
 
+# Programmer Note: Added in forensics_logger.py to log the errors in a file instead of printing on console.
+import forensics_logger
+logObj = forensics_logger.get_logger()
+
+
 def getYAMLFiles(path_to_dir):
     valid_  = [] 
     for root_, dirs, files_ in os.walk( path_to_dir ):

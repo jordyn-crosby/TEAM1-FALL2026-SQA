@@ -1,0 +1,16 @@
+import sys
+import subprocess
+import os
+
+
+directory = os.path.dirname(os.path.abspath(__file__)).split("/.git")[0]
+sys.path.insert(directory)
+import fuzz
+
+report = open(directory + "/forensics.log", 'w')
+fuzz.main()
+repSize = os.stat(directory + "/forensics.log").st_size
+
+if repSize == 0 :
+    raise Exception("Forensics log not written to, either failed to write or you've magically fixed everything")
+
